@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Agendamento Salão do Betinho</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f4f8;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+  }
+  .container {
+    max-width: 700px;
+    background: white;
+    margin: auto;
+    border-radius: 12px;
+    padding: 25px 30px 40px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  }
+  h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 15px;
+  }
+  .photo-area {
+    width: 150px;
+    height: 150px;
+    background: #ddd;
+    border-radius: 50%;
+    margin: 0 auto 25px auto;
+    overflow: hidden;
+    box-shadow: 0 0 8px rgb(0 0 0 / 0.1);
+  }
+  .photo-area img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .day-selector {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin-bottom: 25px;
+  }
+  .day-selector label {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1.1rem;
+    user-select: none;
+    color: #34495e;
+  }
+  .day-selector input[type="radio"] {
+    margin-right: 8px;
+  }
+  .slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+    gap: 15px;
+  }
+  .slot {
+    background: #d1e7dd;
+    border-radius: 10px;
+    padding: 14px 10px;
+    text-align: center;
+    font-weight: 600;
+    color: #0f5132;
+    cursor: pointer;
+    box-shadow: 0 3px 7px rgb(13 110 253 / 0.3);
+    transition: background-color 0.25s ease, transform 0.15s ease;
+    user-select: none;
+    font-size: 0.9rem;
+  }
+  .slot.available:hover {
+    background: #badbcc;
+    transform: translateY(-3px);
+  }
+  .slot.occupied {
+    background: #f8d7da;
+    color: #842029;
+    cursor: default;
+    box-shadow: none;
+  }
+  .slot.admin-occupied {
+    border: 2px solid #842029;
+  }
+  .slot.blocked {
+    background: #f0f0f0;
+    color: #999;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  #message {
+    margin-top: 20px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1.05rem;
+  }
+  button {
+    margin-top: 30px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    background: #007bff;
+    border: none;
+    color: white;
+    padding: 12px 25px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgb(0 123 255 / 0.4);
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background: #0056b3;
+  }
+  #adminLogin {
+    max-width: 320px;
+    margin: 0 auto 30px auto;
+    padding: 15px 20px;
+    border: 1.5px solid #007bff;
+    border-radius: 10px;
+    background: #e7f1ff;
+  }
+  #adminLogin label {
+    font-weight: 600;
+    color: #0056b3;
+    display: block;
+    margin-bottom: 6px;
+  }
+  #adminLogin input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    border-radius: 6px;
+    border: 1.5px solid #007bff;
+    margin-bottom: 12px;
+    outline-offset: 2px;
+  }
+  #logoutBtn {
+    background: #dc3545;
+  }
+  #logoutBtn:hover {
+    background: #a71d2a;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Agendamento Salão do Betinho</h1>
+  <div class="photo-area">
+    <img src="image.png" alt="Foto do Salão do Betinho" />
+  </div>
+  <div id="adminLogin">
+    <label for="adminPassword">Login de Administrador</label>
+    <input type="password" id="adminPassword" placeholder="Digite a senha" />
+    <button id="loginBtn">Entrar como Admin</button>
+  </div>
+  <div style="text-align: center; margin-bottom: 20px;">
+    <label for="clientName" style="font-weight: 600;">Seu nome:</label><br />
+    <input type="text" id="clientName" placeholder="Digite seu nome" style="padding: 10px; font-size: 1rem; width: 80%; max-width: 300px; border-radius: 6px; border: 1px solid #ccc;" />
+  </div>
+  <div class="day-selector" id="daySelector" style="display:none;">
+    <label><input type="radio" name="day" value="sexta" checked /> Sexta-feira</label>
+    <label><input type="radio" name="day" value="sabado" /> Sábado</label>
+  </div>
+  <div class="slots" id="slotsContainer" style="display:none;"></div>
+  <div id="message"></div>
+  <button id="clearBtn" style="display:none;">Limpar todos agendamentos</button>
+  <button id="logoutBtn" style="display:none;">Sair do Admin</button>
+</div>
+<script>
+const startHour = 7;
+const endHour = 17;
+const intervalMinutes = 30;
+const lunchStart = { h: 12, m: 0 };
+const lunchEnd = { h: 12, m: 30 };
+const phone = "5533999545767";
+
+const slotsContainer = document.getElementById('slotsContainer');
+const messageDiv = document.getElementById('message');
+const clearBtn = document.getElementById('clearBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const adminLoginDiv = document.getElementById('adminLogin');
+const daySelector = document.getElementById('daySelector');
+const loginBtn = document.getElementById('loginBtn');
+const adminPasswordInput = document.getElementById('adminPassword');
+const clientNameInput = document.getElementById('clientName');
+
+let isAdmin = false;
+let selectedDay = 'sexta';
+const ADMIN_PASSWORD = 'betinho123';
+
+function formatTime(h, m) {
+  return (h < 10 ? '0' : '') + h + ':' + (m === 0 ? '00' : '30');
+}
+function toMinutes(h, m) {
+  return h * 60 + m;
+}
+function isLunchTime(h, m) {
+  const t = toMinutes(h, m);
+  return t >= toMinutes(lunchStart.h, lunchStart.m) && t < toMinutes(lunchEnd.h, lunchEnd.m);
+}
+function getBookings() {
+  return JSON.parse(localStorage.getItem('salonBookings') || '{}');
+}
+function saveBookings(bookings) {
+  localStorage.setItem('salonBookings', JSON.stringify(bookings));
+}
+function renderSlots(day) {
+  slotsContainer.innerHTML = '';
+  const bookings = getBookings();
+  const dayBookings = bookings[day] || [];
+  for (let h = startHour; h <= endHour; h++) {
+    for (let m = 0; m < 60; m += intervalMinutes) {
+      if (h === endHour && m > 30) continue;
+      const timeStr = formatTime(h, m);
+      if (isLunchTime(h, m)) {
+        const slot = document.createElement('div');
+        slot.className = 'slot blocked';
+        slot.textContent = timeStr;
+        slotsContainer.appendChild(slot);
+        continue;
+      }
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.textContent = timeStr;
+      const isOccupied = dayBookings.some(b => b.h === h && b.m === m);
+      if (isOccupied) {
+        slot.classList.add('occupied');
+        if (isAdmin) {
+          slot.classList.add('admin-occupied');
+          slot.onclick = () => {
+            if (confirm(`Desmarcar agendamento de ${day} às ${timeStr}?`)) {
+              const index = dayBookings.findIndex(b => b.h === h && b.m === m);
+              if (index > -1) {
+                dayBookings.splice(index, 1);
+                bookings[day] = dayBookings;
+                saveBookings(bookings);
+                renderSlots(day);
+              }
+            }
+          }
+        }
+      } else {
+        slot.classList.add('available');
+        slot.onclick = () => {
+          const name = clientNameInput.value.trim();
+          if (!name) {
+            alert('Por favor, digite seu nome.');
+            return;
+          }
+          dayBookings.push({h, m});
+          bookings[day] = dayBookings;
+          saveBookings(bookings);
+          renderSlots(day);
+          const msg = `Olá! Gostaria de agendar no Salão do Betinho.\nDia: ${day}\nHorário: ${timeStr}\nNome: ${name}`;
+          const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+          window.open(url, '_blank');
+        }
+      }
+      slotsContainer.appendChild(slot);
+    }
+  }
+}
+
+daySelector.addEventListener('change', e => {
+  if (e.target.name === 'day') {
+    selectedDay = e.target.value;
+    renderSlots(selectedDay);
+  }
+});
+loginBtn.addEventListener('click', () => {
+  const pass = adminPasswordInput.value.trim();
+  if (pass === ADMIN_PASSWORD) {
+    isAdmin = true;
+    adminLoginDiv.style.display = 'none';
+    daySelector.style.display = 'flex';
+    slotsContainer.style.display = 'grid';
+    clearBtn.style.display = 'block';
+    logoutBtn.style.display = 'block';
+    renderSlots(selectedDay);
+    messageDiv.textContent = 'Você está logado como ADMINISTRADOR.';
+  } else {
+    alert('Senha incorreta!');
+  }
+});
+logoutBtn.addEventListener('click', () => {
+  isAdmin = false;
+  adminPasswordInput.value = '';
+  adminLoginDiv.style.display = 'block';
+  daySelector.style.display = 'none';
+  slotsContainer.style.display = 'none';
+  clearBtn.style.display = 'none';
+  logoutBtn.style.display = 'none';
+  messageDiv.textContent = '';
+});
+clearBtn.addEventListener('click', () => {
+  if (confirm('Tem certeza que deseja limpar TODOS os agendamentos?')) {
+    localStorage.removeItem('salonBookings');
+    renderSlots(selectedDay);
+    messageDiv.textContent = 'Todos os agendamentos foram limpos.';
+  }
+});
+(function initUserView() {
+  adminLoginDiv.style.display = 'block';
+  daySelector.style.display = 'flex';
+  slotsContainer.style.display = 'grid';
+  clearBtn.style.display = 'none';
+  logoutBtn.style.display = 'none';
+  messageDiv.textContent = '';
+  renderSlots(selectedDay);
+})();
+</script>
+</body>
+</html>
